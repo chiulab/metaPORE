@@ -1,0 +1,1 @@
+./server.py > log 2> err &

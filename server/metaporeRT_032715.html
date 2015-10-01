@@ -1,0 +1,342 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript" src="/js/canvasjs.min.js"></script>
+<script type="text/javascript" src="/js/jquery-2.1.4.min.js"></script>
+
+<script type="text/javascript">
+
+	var updateInterval = 30000;
+	var lastUpdate;
+	var dbPath="/data1/sfederman/minion/032715_run071415/run2/032715_83a39.db";
+	
+//		HepC-6/9/2015	/data1/sfederman/minion/hepc_6_9_2015/hepc_6_9_2015.db
+//		Ebola2 Run		/data1/sfederman/minion/realtime_test/complete_db/realtime_test1.db
+
+	String.prototype.capitalize = function() {
+		return this.charAt(0).toUpperCase() + this.slice(1);
+	}
+
+	String.prototype.replaceUnderscore = function() {
+		return this.replace(/_/g," ");
+	}
+
+	function numberWithCommas(x) {
+		return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+	}
+	
+	function updateData() {
+		fetchCounts("all_reads");
+		fetchCounts("virus_species");
+		fetchCounts("bacteria_species");
+		fetchCounts("representative_sequence");
+		fetchCounts("pipeline");
+	}
+
+	function setLastUpdate() {
+		$.get("/cgi-bin/metaporeRTServer_v2.py?action=timestamp", function(data) {
+			lastUpdate = data;
+		});
+	}
+
+	var dataUpdated = function() {
+		$.get("/cgi-bin/metaporeRTServer_v2.py?action=timestamp", function(data) {
+			if (lastUpdate !== data) {
+				lastUpdate = data;
+				updateData();
+			}
+		});
+	}
+
+	function fetchCounts(rank) {
+		var url;
+		if (dbPath) {
+			url="/cgi-bin/metaporeRTServer_v2.py?action="+rank+"&dbPath="+dbPath;
+		}
+		else {
+			url="/cgi-bin/metaporeRTServer_v2.py?action="+rank;
+		}
+		
+		$.getJSON(url, function(data) {
+			var chart = buildChart(rank, data);
+			var sum = 0;
+
+			for(var i = 0; i < data.length; i++){
+			   sum += data[i].y;
+			}
+			formatted_sum = numberWithCommas(sum);
+			document.getElementById("total_" + rank).innerHTML = pad(formatted_sum);
+			chart.render();
+		});
+	}
+	CanvasJS.addColorSet("colors", [
+		"red",
+		"blue",
+		"grey",
+		"green",
+		"purple"
+	]);
+	function buildChart(rank, data) {
+		return new CanvasJS.Chart(rank+"Container",
+		{
+			animationEnabled: true,
+			animationDuration: 500,   //change to 1000, 500 etc
+			colorSet: "colors",
+			title:{
+				text: rank.capitalize().replaceUnderscore(),
+				fontSize:25,
+			},
+			toolTip:{
+				content: "{label}"
+			},
+			axisX:{
+				title: rank,
+				titleFontSize: 10,
+				labelAngle: 0,
+				labelFontSize: 10,
+			},
+			legend:{
+				fontFamily: "arial",
+				itemWidth: 50
+			},
+			data: [
+				{
+					type: "doughnut",
+	// 				showInLegend: true,
+					indexLabelFontSize: 14,
+					dataPoints: data
+				}
+			]
+		});
+	}
+
+	$(document).ready(function() {
+		setLastUpdate();
+		fetchCounts("all_reads");
+		fetchCounts("virus_species");
+		fetchCounts("bacteria_species");
+		fetchCounts("representative_sequence");
+		fetchCounts("pipeline");
+	});
+
+	setInterval(dataUpdated, updateInterval);
+
+	function pad (n) {
+		max_length=7
+		var str = "" + n;
+		if (str.length <= max_length) {
+			var pad = Math.round((max_length - str.length));
+		}
+		var ans = Array(pad).join("&nbsp;") + str;
+		return ans;
+	}
+
+</script>
+
+<script>
+function increment(x) {
+	var oldValue = parseInt(document.getElementById(x).textContent);
+	var newValue = oldValue + 1;
+	document.getElementById(x).textContent = newValue;
+	console.log("old: " + oldValue + "new: " + newValue);
+}
+</script>
+
+<script type="text/javascript">
+    function dataset_update(){
+        var chosen_dataset = document.getElementById("selected_dataset").value;
+        document.getElementById('selector').innerHTML = "Selected database: " + chosen_dataset;
+        dbPath = chosen_dataset;
+        updateData();
+    }
+</script>
+<style>
+	.wrapper {
+		position: relative;
+		height: 280px;
+	    width: 100%;
+	}
+
+	.total {
+		position: absolute;
+		top: 53%;
+		left: 47%;
+		font-size:16px;
+		color:grey;
+		font-family: Helvetica;
+	}
+
+	.total_halfwidth {
+		position: absolute;
+		top: 53%;
+		left: 23%;
+		font-size:16px;
+		color:grey;
+		font-family: Helvetica;
+	}
+
+	.doughnut_plot {
+		height: 100%;
+	    width: 100%;
+		border: 1px solid lightgray;
+	}
+
+	.doughnut_plot_halfwidth {
+		height: 100%;
+	    width: 50%;
+		border: 1px solid lightgray;
+	}
+	
+	#mynetwork {
+		width: 100%;
+		height: 600px;
+		border: 1px solid lightgray;
+	}
+
+	.svg {
+		position: relative;
+		height: 280px;
+	    width: 100%;
+	}
+
+
+</style>
+</head>
+
+<body>
+	<select id="selected_dataset" onchange="dataset_update()">
+	  <option selected value="/data1/sfederman/minion/032715_run071415/run2/032715_83a39.db">83a39</option>
+	  <option selected value="/data1/sfederman/minion/032715_run071415/run2/032715_sph.db">Sph</option>
+	</select>
+	<div id="selector"></div>
+	
+	<div id="wrapper" class="wrapper">
+		<div id="all_readsContainer" class="doughnut_plot"></div>
+		<div id="total_all_reads" class="total";>0</div>
+	</div>
+
+	<div id="wrapper2" class="wrapper">
+		<div id="virus_speciesContainer" class="doughnut_plot"></div>
+		<div id="total_virus_species" class="total";">0</div>
+	</div>
+
+	<div id="wrapper3" class="wrapper">
+		<div id="bacteria_speciesContainer" class="doughnut_plot"></div>
+		<div id="total_bacteria_species" class="total";">0</div>
+	</div>
+
+	<div id="wrapper4" class="wrapper">
+		<div id="representative_sequenceContainer" class="doughnut_plot"></div>
+		<div id="total_representative_sequence" class="total";>0</div>
+	</div>
+
+	<div id="wrapper5" class="wrapper">
+		<div id="pipelineContainer" class="doughnut_plot"></div>
+		<div id="total_pipeline" class="total";>0</div>
+	</div>
+
+<!-- 
+	<div id="svg" class="svg">
+		<svg xmlns="http://www.w3.org/2000/svg" xmlns:xl="http://www.w3.org/1999/xlink" version="1.1" viewBox="77 34 422 396" width="422pt" height="33pc" xmlns:dc="http://purl.org/dc/elements/1.1/">
+			<metadata> Produced by OmniGraffle 6.2.2 <dc:date>2015-05-25 02:38:06 +0000</dc:date></metadata>
+			<defs>
+				<font-face font-family="Helvetica Neue" font-size="8" panose-1="2 0 5 3 0 0 0 2 0 4" units-per-em="1000" underline-position="-100" underline-thickness="50" slope="0" x-height="517" cap-height="714" ascent="951.99585" descent="-212.99744" font-weight="500">
+					<font-face-src><font-face-name name="HelveticaNeue"/></font-face-src>
+				</font-face>
+				<font-face font-family="Helvetica Neue" font-size="10" panose-1="2 0 5 3 0 0 0 2 0 4" units-per-em="1000" underline-position="-100" underline-thickness="50" slope="0" x-height="517" cap-height="714" ascent="951.99585" descent="-212.99744" font-weight="500">
+					<font-face-src><font-face-name name="HelveticaNeue"/></font-face-src>
+				</font-face>
+			</defs>
+			<g stroke="none" stroke-opacity="1" stroke-dasharray="none" fill="none" fill-opacity="1">
+				<title>Canvas 1</title><rect fill="white" width="1046" height="915"/>
+				<g>
+					<title>Layer 1</title>
+					<circle cx="337.62002" cy="156.5" r="32.500052" fill="blue"/>
+					<text transform="translate(313.62002 133.75)" fill="white">
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="7.328" y="8" textLength="35.568">Cutadapt </tspan>
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="13.26" y="18" textLength="21.48">Failed</tspan>
+					</text>
+					<circle cx="237.37998" cy="156.5" r="32.500052" fill="#bfeaff" fill-opacity=".8"/>
+					<text transform="translate(213.37998 133.75)" fill="black">
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="7.328" y="8" textLength="33.344">Cutadapt</tspan>
+					</text>
+					<circle cx="288.008" cy="78.37486" r="32.500052" fill="#ffd5c0" fill-opacity=".8"/>
+					<text transform="translate(264.008 55.62486)" fill="black">
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="2.592" y="8" textLength="42.816">Total Reads</tspan>
+					</text>
+					<circle cx="168.27952" cy="254.73621" r="32.500052" fill="tan" fill-opacity=".8"/>
+					<text transform="translate(144.27952 231.98621)" fill="black">
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="11.104" y="8" textLength="25.792">Human</tspan>
+					</text>
+					<circle cx="288.008" cy="254.73621" r="32.500052" fill="orange" fill-opacity=".8"/>
+					<text transform="translate(264.008 231.98621)" fill="black">
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="2.804" y="8" textLength="42.392">Non-human</tspan>
+					</text>
+					<circle cx="288.008" cy="386.15747" r="32.500052" fill="yellow" fill-opacity=".8"/>
+					<text transform="translate(264.008 363.40747)" fill="black">
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="3.468" y="8" textLength="43.288">Non-human </tspan>
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="6.072" y="18" textLength="35.856">Eukaryote</tspan>
+					</text>
+					<circle cx="121.39573" cy="349.59054" r="32.500052" fill="green" fill-opacity=".8"/>
+					<text transform="translate(97.39573 326.84054)" fill="black">
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="9.188" y="8" textLength="29.624">Bacteria</tspan>
+					</text>
+					<circle cx="202.4666" cy="386.15747" r="32.500052" fill="red" fill-opacity=".8"/>
+					<text transform="translate(178.4666 363.40747)" fill="white">
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="10.964" y="8" textLength="26.072">Viruses</tspan>
+					</text>
+					<circle cx="454.62027" cy="349.59054" r="32.500052" fill="black" fill-opacity=".8"/>
+					<text transform="translate(430.62027 326.84054)" fill="white">
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="14.74" y="8" textLength="20.744">other </tspan>
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="9.924" y="18" textLength="28.152">Lineage</tspan>
+					</text>
+					<circle cx="373.5494" cy="386.15747" r="32.500052" fill="grey" fill-opacity=".8"/>
+					<text transform="translate(349.5494 363.40747)" fill="white">
+						<tspan font-family="Helvetica Neue" font-size="8" font-weight="500" x="3.032" y="8" textLength="32.896">unIdentified</tspan>
+					</text>
+					<line x1="270.3299" y1="105.654307" x2="255.05809" y2="129.22055" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+					<line x1="305.43419" y1="105.81626" x2="320.19383" y2="129.0586" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+					<line x1="218.67859" y1="183.08671" x2="186.98091" y2="228.1495" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+					<line x1="252.27256" y1="185.39686" x2="273.11542" y2="225.83935" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+					<line x1="288.008" y1="287.23623" x2="288.008" y2="353.65745" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+					<line x1="270.27515" y1="281.98002" x2="220.19945" y2="358.91366" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+					<line x1="305.74085" y1="281.98002" x2="355.81655" y2="358.91366" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+					<line x1="316.25872" y1="270.81968" x2="426.36955" y2="333.50707" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+					<line x1="149.64645" y1="333.50707" x2="259.75728" y2="270.81968" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+
+					<text transform="translate(285.008 70.87486)" fill="black">
+						<tspan id="total_reads" font-family="Helvetica Neue" font-size="10" font-weight="500" x=".22" y="10" textLength="5.56">0</tspan>
+					</text>
+					<text transform="translate(234.37998 150.5)" fill="black">
+						<tspan id="cutadapt" font-family="Helvetica Neue" font-size="10" font-weight="500" x=".22" y="10" textLength="5.56">0</tspan>
+					</text>
+					<text transform="translate(334.62002 156.01968)" fill="white"><tspan id="cutadapt_failed" font-family="Helvetica Neue" font-size="10" font-weight="500" y="10" text-anchor="middle">236</tspan></text>
+					<text transform="translate(285.008 248.73621)" fill="black"><tspan id="non_human" font-family="Helvetica Neue" font-size="10" font-weight="500" y="10" text-anchor="middle">21,529</tspan></text>
+					<text transform="translate(165.27952 248.73621)" fill="black"><tspan id="human" font-family="Helvetica Neue" font-size="10" font-weight="500" y="10" text-anchor="middle">6,959</tspan></text>
+					<text transform="translate(118.39573 343.59054)" fill="black"><tspan id="bacteria" font-family="Helvetica Neue" font-size="10" font-weight="500" y="10" text-anchor="middle">304</tspan></text>
+					<text transform="translate(199.4666 380.15747)" fill="white"><tspan id="virus" font-family="Helvetica Neue" font-size="10" font-weight="500" y="10" text-anchor="middle">45</tspan></text>
+					<text transform="translate(285.008 385.62597)" fill="black"><tspan id="nh_euk" font-family="Helvetica Neue" font-size="10" font-weight="500" y="10" text-anchor="middle">87</tspan></text>
+					<text transform="translate(370.5494 380.15747)" fill="white"><tspan id="unidentified" font-family="Helvetica Neue" font-size="10" font-weight="500" y="10" text-anchor="middle">21,085</tspan></text>
+					<text transform="translate(451.62027 352.46062)" fill="white"><tspan id="other_lineage" font-family="Helvetica Neue" font-size="10" font-weight="500" y="10" text-anchor="middle">8</tspan></text>
+				</g>
+			</g>
+		</svg>
+	</div>
+ -->
+
+<p>
+<!-- 
+<button onclick=increment("total_reads")>total_reads</button>
+<button onclick=increment("cutadapt")>cutadapt</button>
+<button onclick=increment("cutadapt_failed")>cutadapt_failed</button>
+<button onclick=increment("human")>human</button>
+<button onclick=increment("non_human")>non_human</button>
+<button onclick=increment("bacteria")>bacteria</button>
+<button onclick=increment("virus")>virus</button>
+<button onclick=increment("nh_euk")>nh_euk</button>
+<button onclick=increment("unidentified")>unidentified</button>
+<button onclick=increment("other_lineage")>other_lineage</button>
+ -->
+
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript" src="/js/canvasjs.min.js"></script>
+<script type="text/javascript" src="/js/jquery-2.1.4.min.js"></script>
+
+<script type="text/javascript">
+
+var updateInterval = 30000;
+var lastUpdate;
+
+String.prototype.capitalize = function() {
+    return this.charAt(0).toUpperCase() + this.slice(1);
+}
+
+String.prototype.replaceUnderscore = function() {
+    return this.replace(/_/g," ");
+}
+
+function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function updateData() {
+	fetchCounts("all_reads");
+	fetchCounts("virus_species");
+}
+
+function setLastUpdate() {
+	$.get("/cgi-bin/metaporeRTServer.py?action=timestamp", function(data) {
+		lastUpdate = data;
+	});
+}
+
+var dataUpdated = function() {
+	$.get("/cgi-bin/metaporeRTServer.py?action=timestamp", function(data) {
+		if (lastUpdate !== data) {
+			lastUpdate = data;
+			updateData();
+		}
+	});
+}
+
+function fetchCounts(rank) {
+	$.getJSON("/cgi-bin/metaporeRTServer.py?action="+rank, function(data) {
+		var chart = buildChart(rank, data);
+		var sum = 0;
+
+		for(var i = 0; i < data.length; i++){
+		   sum += data[i].y;
+		}
+		formatted_sum = numberWithCommas(sum);
+		document.getElementById("total_" + rank).innerHTML = pad(formatted_sum);
+		chart.render();
+	});
+}
+CanvasJS.addColorSet("colors",
+                [//colorSet Array
+                "red",
+                "blue",
+                "yellow",
+                "green",
+                "purple"
+                ]);
+function buildChart(rank, data) {
+	return new CanvasJS.Chart(rank+"Container",
+	{
+		animationEnabled: true,
+		animationDuration: 500,   //change to 1000, 500 etc
+		colorSet: "colors",
+		title:{
+			text: rank.capitalize().replaceUnderscore(),
+			fontSize:25,
+		},
+		toolTip:{
+			content: "{label}"
+		},
+		axisX:{
+			title: rank,
+			titleFontSize: 10,
+			labelAngle: 0,
+			labelFontSize: 10,
+		},
+		legend:{
+			fontFamily: "arial",
+			itemWidth: 50
+		},
+		data: [
+			{
+				type: "doughnut",
+// 				showInLegend: true,
+				indexLabelFontSize: 14,
+				dataPoints: data
+			}
+		]
+	});
+}
+
+$(document).ready(function() {
+	setLastUpdate();
+	fetchCounts("all_reads");
+	fetchCounts("virus_species");
+});
+
+setInterval(dataUpdated, updateInterval);
+
+function pad (n) {
+    max_length=7
+    var str = "" + n;
+//     var pad = Math.round((max_length - str.length)/2);
+	if (str.length <= max_length) {
+    	var pad = Math.round((max_length - str.length));
+    }
+    var ans = Array(pad).join("&nbsp;") + str;
+    return ans;
+}
+
+</script>
+<style>
+	.wrapper {
+		position: relative;
+		height: 280px;
+	    width: 100%;
+	}
+
+	.total {
+		position: absolute;
+		top: 53%;
+		left: 47%;
+		font-size:16px;
+		color:grey;
+		font-family: Helvetica;
+	}
+
+	.doughnut_plot {
+		height: 100%;
+	    width: 100%;
+	}
+
+</style>
+</head>
+<body>
+	<div id="wrapper" class="wrapper">
+		<div id="all_readsContainer" class="doughnut_plot"></div>
+		<div id="total_all_reads" class="total";>0</div>
+	</div>
+
+	<div id="wrapper2" class="wrapper">
+		<div id="virus_speciesContainer" class="doughnut_plot"></div>
+		<div id="total_virus_species" class="total";">0</div>
+	</div>
+</body>
+</html>
