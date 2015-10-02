@@ -1,4 +1,5 @@
-###MetaPORE – Chiu Laboratory, University of California, San Francisco###
+###MetaPORE – Chiu Laboratory###
+###University of California, San Francisco###
 
 MetaPORE is described in [this] (http://www.genomemedicine.com/content/7/1/99) manuscript.
 
